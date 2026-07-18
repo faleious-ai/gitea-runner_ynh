@@ -1,66 +1,46 @@
 #!/bin/bash
 
-#=================================================
-# GENERIC START
-#=================================================
-# IMPORT GENERIC HELPERS
-#=================================================
-
 source _common.sh
 source /usr/share/yunohost/helpers
 
-gitea_url=$YNH_APP_ARG_GITEA_URL
-token=$YNH_APP_ARG_TOKEN
-docker_image="alpine:latest"
-
-#=================================================
-# APP "BUILD" (DEPLOYING SOURCES, VENV, COMPILING ETC)
-#=================================================
-# DOWNLOAD, CHECK AND UNPACK SOURCE
-#=================================================
-ynh_script_progression --message="Setting up source files..." --weight=1
-
-# Download, check integrity, uncompress and patch the source from manifest.toml
+ynh_script_progression --message="Installing the Gitea Runner binary..." --weight=2
 ynh_setup_source --dest_dir="$install_dir"
+chmod 0755 "$install_dir/runner"
+chown -R "$app:$app" "$install_dir" "$data_dir"
 
-chown -R $app:www-data "$install_dir"
-chmod +x "$install_dir/act_runner"
+ynh_script_progression --message="Creating the Runner configuration..." --weight=1
+if [ ! -f "$data_dir/config.yaml" ]; then
+    "$install_dir/runner" generate-config > "$data_dir/config.yaml"
+fi
+chown "$app:$app" "$data_dir/config.yaml"
+chmod 0640 "$data_dir/config.yaml"
 
-#=================================================
-# SYSTEM CONFIGURATION
-#=================================================
-ynh_script_progression --message="Adding system configurations related to $app..." --weight=1
+# Registration is optional so package CI and staged installations do not need
+# a live external Gitea instance. A supplied token is consumed once and is not
+# stored in YunoHost settings or configuration files.
+if [ -n "${token:-}" ]; then
+    ynh_script_progression --message="Registering the Runner with Gitea..." --weight=2
+    pushd "$data_dir" >/dev/null
+    ynh_exec_as_app "$install_dir/runner" --config "$data_dir/config.yaml" register \
+        --no-interactive \
+        --instance "$gitea_url" \
+        --token "$token"
+    popd >/dev/null
+    token=""
+fi
 
-# Create a dedicated NGINX config using the conf/nginx.conf template
-#ynh_add_nginx_config
-
-# Create a dedicated systemd config
+ynh_script_progression --message="Installing the systemd service..." --weight=1
 ynh_add_systemd_config
 
-yunohost service add $app --description="Runner for Gitea" --log="/var/log/$app/$app.log"
+yunohost service add "$app" \
+    --description="Official Runner for Gitea Actions" \
+    --log="/var/log/$app/$app.log"
 
-#=================================================
-# APP INITIAL CONFIGURATION
-#=================================================
-# ADD A CONFIGURATION
-#=================================================
-ynh_script_progression --message="Adding a configuration file..." --weight=1
+if [ -f "$data_dir/.runner" ]; then
+    ynh_script_progression --message="Starting Gitea Runner..." --weight=1
+    ynh_systemd_action --service_name="$app" --action="start" --log_path="systemd"
+else
+    ynh_print_info --message="Runner installed but not registered. Register it from $data_dir before starting the service."
+fi
 
-pushd $install_dir
-	./act_runner register --instance $gitea_url --token $token --no-interactive
-popd
-
-#=================================================
-# GENERIC FINALIZATION
-#=================================================
-# START SYSTEMD SERVICE
-#=================================================
-ynh_script_progression --message="Starting a systemd service..." --weight=1
-
-# Start a systemd service
-ynh_systemd_action --service_name=$app --action="start" --log_path="systemd"
-
-#=================================================
-# END OF SCRIPT
-#=================================================
 ynh_script_progression --message="Installation of $app completed" --last
