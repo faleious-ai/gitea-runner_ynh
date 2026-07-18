@@ -4,72 +4,63 @@ packaging_format = 2
 
 id = "gitea-runner"
 name = "Gitea Runner"
-description.en = "Runner for Gitea based on act"
-description.fr = "Runner pour Gitea basé sur act"
+description.en = "Official runner for Gitea Actions"
+description.fr = "Runner officiel pour Gitea Actions"
+description.pt = "Runner oficial para o Gitea Actions"
 
-version = "0.2.6~ynh1"
+# The automated updater replaces this with the newest stable validated release.
+version = "0.2.6~ynh2"
 
-maintainers = ["eric_G"]
+maintainers = ["eric_G", "faleious-ai"]
 
 [upstream]
 license = "MIT"
-code = "https://gitea.com/gitea/act_runner"
+website = "https://docs.gitea.com/usage/actions/runner"
+admindoc = "https://docs.gitea.com/usage/actions/runner"
+code = "https://gitea.com/gitea/runner"
 
 [integration]
-yunohost = ">= 11.2"
-architectures = "all"
+yunohost = ">= 12.1.38"
+helpers_version = "2.1"
+architectures = ["amd64", "arm64"]
 multi_instance = false
-
 ldap = "not_relevant"
-
 sso = "not_relevant"
-
-disk = "50M"
-ram.build = "50M"
-ram.runtime = "50M"
+disk = "250M"
+ram.build = "0M"
+ram.runtime = "150M"
 
 [install]
-    [install.domain]
-    type = "domain"
+    [install.gitea_url]
+    ask.en = "URL of the Gitea instance"
+    ask.fr = "URL de l’instance Gitea"
+    ask.pt = "URL da instância Gitea"
+    type = "url"
+    example = "https://git.example.org"
 
     [install.token]
-    ask.en = "This token can be retrieved at this location: http://gitea.domain.tld/admin/actions/runners"
-    ask.fr = "Ce token peut être récupéré à cet emplacement : http://gitea.domain.tld/admin/actions/runners"
+    ask.en = "Runner registration token (leave empty to install unregistered)"
+    ask.fr = "Jeton d’enregistrement du runner (laisser vide pour installer sans enregistrer)"
+    ask.pt = "Token de registro do runner (deixe vazio para instalar sem registrar)"
     type = "string"
-    example = "xxxx"
-
-    [install.gitea_url]
-    ask.en = "Please enter Gitea URL"
-    ask.fr = "Veuillez entrer l'URL de Gitea"
-    type = "string"
-    example = "https://gitea.com/"
+    optional = true
 
 [resources]
-
     [resources.sources]
-
         [resources.sources.main]
         amd64.url = "https://gitea.com/gitea/act_runner/releases/download/v0.2.6/act_runner-0.2.6-linux-amd64"
         amd64.sha256 = "234c2bdb871e7b0bfb84697f353395bfc7819faf9f0c0443845868b64a041057"
         arm64.url = "https://gitea.com/gitea/act_runner/releases/download/v0.2.6/act_runner-0.2.6-linux-arm64"
         arm64.sha256 = "f5c477b54d7db5289acee6b59cd96b28de4bdda809f79e830662d4c952b2914d"
-        armhf.url = "https://gitea.com/gitea/act_runner/releases/download/v0.2.6/act_runner-0.2.6-linux-arm-7"
-        armhf.sha256 = "b9e7d4058e335513be0a76180e11f4f3971486ad7d64358f7ecde734b8ca19fa"
         in_subdir = false
         extract = false
-        rename = "act_runner"
+        rename = "runner"
 
     [resources.system_user]
 
     [resources.install_dir]
 
-    [resources.permissions]
-    main.url = "/"
+    [resources.data_dir]
 
     [resources.apt]
-    packages = "ca-certificates, git, curl, tar"
-
-    extras.docker.repo = "https://download.docker.com/linux/debian bullseye stable"
-    extras.docker.key = "https://download.docker.com/linux/debian/gpg"
-    extras.docker.packages = "docker-ce, docker-ce-cli, containerd.io"
-    
+    packages = "ca-certificates, git, docker.io"
