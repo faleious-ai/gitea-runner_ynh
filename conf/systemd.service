@@ -1,47 +1,39 @@
 [Unit]
 Description=Gitea Runner
-After=network.target
+Documentation=https://docs.gitea.com/usage/actions/runner
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+ConditionPathExists=__DATA_DIR__/.runner
 
 [Service]
 Type=simple
 User=__APP__
 Group=__APP__
-WorkingDirectory=__INSTALL_DIR__/
-ExecStart=__INSTALL_DIR__/act_runner daemon
+SupplementaryGroups=docker
+WorkingDirectory=__DATA_DIR__
+ExecStart=__INSTALL_DIR__/runner --config __DATA_DIR__/config.yaml daemon
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=90s
 
-# Sandboxing options to harden security
-# Depending on specificities of your service/app, you may need to tweak these
-# .. but this should be a good baseline
-# Details for these options: https://www.freedesktop.org/software/systemd/man/systemd.exec.html
 NoNewPrivileges=yes
 PrivateTmp=yes
-PrivateDevices=yes
-RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
-RestrictNamespaces=yes
-RestrictRealtime=yes
-DevicePolicy=closed
 ProtectClock=yes
-ProtectHostname=yes
-ProtectProc=invisible
-ProtectSystem=full
 ProtectControlGroups=yes
+ProtectHostname=yes
+ProtectKernelLogs=yes
 ProtectKernelModules=yes
 ProtectKernelTunables=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=__DATA_DIR__
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+RestrictRealtime=yes
 LockPersonality=yes
 SystemCallArchitectures=native
-SystemCallFilter=~@clock @debug @module @mount @obsolete @reboot @setuid @swap @cpu-emulation @privileged
-
-# Denying access to capabilities that should not be relevant for webapps
-# Doc: https://man7.org/linux/man-pages/man7/capabilities.7.html
-CapabilityBoundingSet=~CAP_RAWIO CAP_MKNOD
-CapabilityBoundingSet=~CAP_AUDIT_CONTROL CAP_AUDIT_READ CAP_AUDIT_WRITE
-CapabilityBoundingSet=~CAP_SYS_BOOT CAP_SYS_TIME CAP_SYS_MODULE CAP_SYS_PACCT
-CapabilityBoundingSet=~CAP_LEASE CAP_LINUX_IMMUTABLE CAP_IPC_LOCK
-CapabilityBoundingSet=~CAP_BLOCK_SUSPEND CAP_WAKE_ALARM
-CapabilityBoundingSet=~CAP_SYS_TTY_CONFIG
-CapabilityBoundingSet=~CAP_MAC_ADMIN CAP_MAC_OVERRIDE
-CapabilityBoundingSet=~CAP_NET_ADMIN CAP_NET_BROADCAST CAP_NET_RAW
-CapabilityBoundingSet=~CAP_SYS_ADMIN CAP_SYS_PTRACE CAP_SYSLOG
+CapabilityBoundingSet=
+AmbientCapabilities=
 
 [Install]
 WantedBy=multi-user.target
