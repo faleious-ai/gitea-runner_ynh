@@ -32,15 +32,15 @@ fi
 ynh_script_progression --message="Installing the systemd service..." --weight=1
 ynh_add_systemd_config
 
-yunohost service add "$app" \
-    --description="Official Runner for Gitea Actions" \
-    --log="/var/log/$app/$app.log"
-
 if [ -f "$data_dir/.runner" ]; then
+    yunohost service add "$app" \
+        --description="Official Runner for Gitea Actions" \
+        --log="/var/log/$app/$app.log"
     ynh_script_progression --message="Starting Gitea Runner..." --weight=1
     ynh_systemd_action --service_name="$app" --action="start" --log_path="systemd"
 else
-    ynh_print_info --message="Runner installed but not registered. Register it from $data_dir before starting the service."
+    yunohost service remove "$app" >/dev/null 2>&1 || true
+    ynh_print_info --message="Runner installed but not registered. Register it from $data_dir, add it to YunoHost service monitoring, then start it."
 fi
 
 ynh_script_progression --message="Installation of $app completed" --last
