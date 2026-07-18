@@ -35,7 +35,7 @@ ram.runtime = "150M"
     ask.en = "URL of the Gitea instance"
     ask.fr = "URL de l’instance Gitea"
     ask.pt = "URL da instância Gitea"
-    type = "url"
+    type = "string"
     example = "https://git.example.org"
 
     [install.token]
