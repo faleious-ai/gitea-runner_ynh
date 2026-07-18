@@ -2,52 +2,69 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import re
 import tempfile
+import urllib.parse
 import urllib.request
+from html.parser import HTMLParser
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "manifest.toml"
-API = "https://gitea.com/api/v1/repos/gitea/runner/releases/latest"
-ARCH_ALIASES = {
-    "amd64": ("amd64", "x86_64"),
-    "arm64": ("arm64", "aarch64"),
+DOWNLOAD_ROOT = "https://dl.gitea.com/gitea-runner/"
+ASSET_NAMES = {
+    "amd64": "gitea-runner-{version}-linux-amd64",
+    "arm64": "gitea-runner-{version}-linux-arm64",
 }
-REJECT_SUFFIXES = (".sha256", ".sha512", ".sig", ".asc", ".json", ".tar.gz", ".tgz", ".zip")
+SEMVER = re.compile(r"^(\d+)\.(\d+)\.(\d+)/?$")
 
 
-def request_json(url: str) -> dict:
-    request = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "gitea-runner-ynh-updater"})
-    with urllib.request.urlopen(request, timeout=60) as response:
-        return json.load(response)
+class LinkCollector(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.hrefs: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag != "a":
+            return
+        href = dict(attrs).get("href")
+        if href:
+            self.hrefs.append(href)
+
+
+def request(url: str) -> urllib.response.addinfourl:
+    return urllib.request.urlopen(
+        urllib.request.Request(url, headers={"User-Agent": "gitea-runner-ynh-updater"}),
+        timeout=180,
+    )
+
+
+def request_text(url: str) -> str:
+    with request(url) as response:
+        return response.read().decode("utf-8")
+
+
+def latest_stable_version() -> str:
+    parser = LinkCollector()
+    parser.feed(request_text(DOWNLOAD_ROOT))
+    versions: list[tuple[tuple[int, int, int], str]] = []
+    for href in parser.hrefs:
+        candidate = urllib.parse.urlparse(href).path.rstrip("/").rsplit("/", 1)[-1]
+        match = SEMVER.fullmatch(candidate)
+        if match:
+            versions.append((tuple(map(int, match.groups())), candidate))
+    if not versions:
+        raise RuntimeError("official Runner download index contains no stable semantic version")
+    return max(versions)[1]
 
 
 def download_sha256(url: str, destination: Path) -> str:
-    request = urllib.request.Request(url, headers={"User-Agent": "gitea-runner-ynh-updater"})
     digest = hashlib.sha256()
-    with urllib.request.urlopen(request, timeout=180) as response, destination.open("wb") as output:
+    with request(url) as response, destination.open("wb") as output:
         while chunk := response.read(1024 * 1024):
             output.write(chunk)
             digest.update(chunk)
     return digest.hexdigest()
-
-
-def select_binary(assets: list[dict], architecture: str) -> dict:
-    aliases = ARCH_ALIASES[architecture]
-    matches = []
-    for asset in assets:
-        name = str(asset.get("name", "")).lower()
-        if "linux" not in name or not any(alias in name for alias in aliases):
-            continue
-        if name.endswith(REJECT_SUFFIXES) or any(word in name for word in ("debug", "checksums", "nightly")):
-            continue
-        matches.append(asset)
-    if len(matches) != 1:
-        names = [str(asset.get("name")) for asset in assets]
-        raise RuntimeError(f"expected one raw {architecture} binary, found {[item.get('name') for item in matches]}; assets={names}")
-    return matches[0]
 
 
 def replace_field(text: str, key: str, value: str) -> str:
@@ -59,22 +76,28 @@ def replace_field(text: str, key: str, value: str) -> str:
 
 
 def main() -> int:
-    release = request_json(API)
-    tag = str(release.get("tag_name", ""))
-    if release.get("draft") or release.get("prerelease") or not re.fullmatch(r"v\d+\.\d+\.\d+", tag):
-        raise RuntimeError(f"latest release is not stable semver: {tag!r}")
-    version = tag[1:]
-    assets = list(release.get("assets") or [])
-    selected = {architecture: select_binary(assets, architecture) for architecture in ARCH_ALIASES}
+    version = latest_stable_version()
+    selected = {
+        architecture: (
+            name := template.format(version=version),
+            f"{DOWNLOAD_ROOT}{version}/{name}",
+        )
+        for architecture, template in ASSET_NAMES.items()
+    }
 
     hashes: dict[str, str] = {}
     with tempfile.TemporaryDirectory(prefix="gitea-runner-ynh-") as temp_dir:
         temp = Path(temp_dir)
-        for architecture, asset in selected.items():
-            url = str(asset.get("browser_download_url") or asset.get("url") or "")
-            if not url.startswith("https://gitea.com/gitea/runner/releases/download/"):
-                raise RuntimeError(f"unexpected release URL for {architecture}: {url}")
-            hashes[architecture] = download_sha256(url, temp / str(asset["name"]))
+        for architecture, (name, url) in selected.items():
+            expected_line = request_text(f"{url}.sha256").strip()
+            expected_match = re.fullmatch(r"([0-9a-fA-F]{64})(?:\s+\*?\S+)?", expected_line)
+            if not expected_match:
+                raise RuntimeError(f"invalid upstream SHA-256 file for {name}: {expected_line!r}")
+            expected = expected_match.group(1).lower()
+            actual = download_sha256(url, temp / name)
+            if actual != expected:
+                raise RuntimeError(f"SHA-256 mismatch for {name}: expected {expected}, got {actual}")
+            hashes[architecture] = actual
 
     text = MANIFEST.read_text(encoding="utf-8")
     current_match = re.search(r'(?m)^version\s*=\s*"([^"]+)"', text)
@@ -86,8 +109,7 @@ def main() -> int:
         return 0
 
     text = replace_field(text, "version", f"{version}~ynh1")
-    for architecture, asset in selected.items():
-        url = str(asset.get("browser_download_url") or asset.get("url"))
+    for architecture, (_, url) in selected.items():
         text = replace_field(text, f"{architecture}.url", url)
         text = replace_field(text, f"{architecture}.sha256", hashes[architecture])
     MANIFEST.write_text(text, encoding="utf-8")
