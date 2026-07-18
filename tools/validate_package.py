@@ -10,6 +10,9 @@ ROOT = Path(__file__).resolve().parents[1]
 SEMVER = re.compile(r"^\d+\.\d+\.\d+~ynh\d+$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 FORBIDDEN = ("/latest/", "nightly", "-rc", "-beta", "-alpha")
+IDENTITY_CONDITION = 'if [ -f "$data_dir/.runner" ]; then'
+SERVICE_ADD = 'yunohost service add "$app"'
+SERVICE_REMOVE = 'yunohost service remove "$app"'
 
 
 def main() -> int:
@@ -47,6 +50,18 @@ def main() -> int:
         errors.append("systemd service must use stable binary path and persistent identity")
     if "PrivateDevices=yes" in service or "RestrictNamespaces=yes" in service:
         errors.append("systemd hardening blocks Docker execution")
+
+    for lifecycle in ("install", "upgrade"):
+        script_path = ROOT / "scripts" / lifecycle
+        script = script_path.read_text(encoding="utf-8")
+        if IDENTITY_CONDITION not in script:
+            errors.append(f"{lifecycle} must gate service monitoring on persistent runner identity")
+        elif SERVICE_ADD not in script:
+            errors.append(f"{lifecycle} must add a registered runner to YunoHost monitoring")
+        elif script.index(SERVICE_ADD) < script.index(IDENTITY_CONDITION):
+            errors.append(f"{lifecycle} monitors the service before runner registration is proven")
+        if SERVICE_REMOVE not in script:
+            errors.append(f"{lifecycle} must remove unregistered runners from YunoHost monitoring")
 
     for script in (ROOT / "scripts").iterdir():
         if script.is_file() and b"\r\n" in script.read_bytes():
