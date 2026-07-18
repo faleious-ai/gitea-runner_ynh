@@ -32,13 +32,14 @@ chmod 0640 "$data_dir/config.yaml"
 
 ynh_script_progression --message="Refreshing the systemd service..." --weight=1
 ynh_add_systemd_config
-yunohost service add "$app" --description="Official Runner for Gitea Actions" --log="/var/log/$app/$app.log"
 
 if [ -f "$data_dir/.runner" ]; then
+    yunohost service add "$app" --description="Official Runner for Gitea Actions"
     ynh_script_progression --message="Starting Gitea Runner..." --weight=1
     ynh_systemd_action --service_name="$app" --action="start" --log_path="systemd"
 else
-    ynh_print_info --message="Upgrade completed without runner identity; the service remains inactive."
+    yunohost service remove "$app" >/dev/null 2>&1 || true
+    ynh_print_info --message="Upgrade completed without runner identity; service remains inactive."
 fi
 
 ynh_script_progression --message="Upgrade of $app completed" --last
