@@ -54,10 +54,11 @@ The GitHub workflows also run the current official `YunoHost/package_linter`
 procedure: clone the linter, create a virtual environment, install its
 `requirements.txt` and invoke `package_linter.py` against this package.
 
-YunoHost 12 systemd helpers are named `ynh_config_add_systemd` and
-`ynh_config_remove_systemd`. Keep the obsolete `ynh_add_systemd_config` and
-`ynh_remove_systemd_config` spellings out of every lifecycle script; the local
-validator enforces this contract.
+YunoHost 12 systemd helpers are named `ynh_config_add_systemd`,
+`ynh_config_remove_systemd` and `ynh_systemctl`. Keep the obsolete
+`ynh_add_systemd_config`, `ynh_remove_systemd_config` and `ynh_systemd_action`
+spellings out of every lifecycle script; the local validator enforces this
+contract.
 
 Because this fork is intentionally maintained outside the YunoHost application
 catalog, CI permits only the linter's `AppCatalog.is_in_catalog` result for
