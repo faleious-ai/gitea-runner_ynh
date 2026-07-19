@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import re
 import tempfile
+import tomllib
 import urllib.parse
 import urllib.request
 from html.parser import HTMLParser
@@ -44,6 +45,13 @@ def request_text(url: str) -> str:
         return response.read().decode("utf-8")
 
 
+def version_key(value: str) -> tuple[int, int, int]:
+    match = SEMVER.fullmatch(value)
+    if not match:
+        raise RuntimeError(f"invalid semantic version: {value!r}")
+    return tuple(map(int, match.groups()))
+
+
 def latest_stable_version() -> str:
     parser = LinkCollector()
     parser.feed(request_text(DOWNLOAD_ROOT))
@@ -75,8 +83,27 @@ def replace_field(text: str, key: str, value: str) -> str:
     return updated
 
 
+def current_pins(text: str) -> tuple[str, dict[str, dict[str, str]]]:
+    manifest = tomllib.loads(text)
+    package_version = str(manifest.get("version", ""))
+    upstream_version = package_version.split("~", 1)[0]
+    version_key(upstream_version)
+    source = manifest.get("resources", {}).get("sources", {}).get("main", {})
+    pins: dict[str, dict[str, str]] = {}
+    for architecture in ASSET_NAMES:
+        entry = source.get(architecture)
+        if not isinstance(entry, dict):
+            raise RuntimeError(f"manifest source missing architecture {architecture}")
+        pins[architecture] = {
+            "url": str(entry.get("url", "")),
+            "sha256": str(entry.get("sha256", "")),
+        }
+    return upstream_version, pins
+
+
 def main() -> int:
     version = latest_stable_version()
+    latest_key = version_key(version)
     selected = {
         architecture: (
             name := template.format(version=version),
@@ -100,20 +127,36 @@ def main() -> int:
             hashes[architecture] = actual
 
     text = MANIFEST.read_text(encoding="utf-8")
-    current_match = re.search(r'(?m)^version\s*=\s*"([^"]+)"', text)
-    if not current_match:
-        raise RuntimeError("manifest version not found")
-    current = current_match.group(1).split("~", 1)[0]
+    current, pins = current_pins(text)
+    if version_key(current) > latest_key:
+        raise RuntimeError(f"refusing automated downgrade from {current} to {version}")
+
     if current == version:
+        changed_assets = [
+            architecture
+            for architecture in ASSET_NAMES
+            if pins[architecture]["sha256"] != hashes[architecture]
+        ]
+        if changed_assets:
+            raise RuntimeError(
+                "upstream republished assets for the currently packaged version; "
+                f"manual review required for {', '.join(changed_assets)}"
+            )
+
+    updated = replace_field(text, "version", f"{version}~ynh1")
+    for architecture, (_, url) in selected.items():
+        updated = replace_field(updated, f"{architecture}.url", url)
+        updated = replace_field(updated, f"{architecture}.sha256", hashes[architecture])
+
+    if updated == text:
         print(f"already-current {version}")
         return 0
 
-    text = replace_field(text, "version", f"{version}~ynh1")
-    for architecture, (_, url) in selected.items():
-        text = replace_field(text, f"{architecture}.url", url)
-        text = replace_field(text, f"{architecture}.sha256", hashes[architecture])
-    MANIFEST.write_text(text, encoding="utf-8")
-    print(f"updated {current} -> {version}")
+    MANIFEST.write_text(updated, encoding="utf-8")
+    if current == version:
+        print(f"normalized immutable pins for {version}")
+    else:
+        print(f"updated {current} -> {version}")
     return 0
 
 
