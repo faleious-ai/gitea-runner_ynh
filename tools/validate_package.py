@@ -15,6 +15,12 @@ SERVICE_ADD = 'yunohost service add "$app"'
 SERVICE_REMOVE = 'yunohost service remove "$app"'
 SYSTEMD_ADD = "ynh_config_add_systemd"
 SYSTEMD_REMOVE = "ynh_config_remove_systemd"
+SYSTEMCTL = "ynh_systemctl"
+OBSOLETE_HELPERS = {
+    "ynh_add_systemd_config": SYSTEMD_ADD,
+    "ynh_remove_systemd_config": SYSTEMD_REMOVE,
+    "ynh_systemd_action": SYSTEMCTL,
+}
 
 
 def main() -> int:
@@ -53,13 +59,26 @@ def main() -> int:
     if "PrivateDevices=yes" in service or "RestrictNamespaces=yes" in service:
         errors.append("systemd hardening blocks Docker execution")
 
-    for lifecycle in ("install", "upgrade"):
-        script_path = ROOT / "scripts" / lifecycle
+    scripts: dict[str, str] = {}
+    for script_path in (ROOT / "scripts").iterdir():
+        if not script_path.is_file():
+            continue
         script = script_path.read_text(encoding="utf-8")
-        if "ynh_add_systemd_config" in script:
-            errors.append(f"{lifecycle} uses obsolete ynh_add_systemd_config")
+        scripts[script_path.name] = script
+        for obsolete, replacement in OBSOLETE_HELPERS.items():
+            if obsolete in script:
+                errors.append(
+                    f"scripts/{script_path.name} uses obsolete {obsolete}; use {replacement}"
+                )
+        if b"\r\n" in script_path.read_bytes():
+            errors.append(f"CRLF line endings in {script_path.relative_to(ROOT)}")
+
+    for lifecycle in ("install", "upgrade"):
+        script = scripts[lifecycle]
         if SYSTEMD_ADD not in script:
             errors.append(f"{lifecycle} must use {SYSTEMD_ADD}")
+        if SYSTEMCTL not in script:
+            errors.append(f"{lifecycle} must use {SYSTEMCTL} for service lifecycle actions")
         if IDENTITY_CONDITION not in script:
             errors.append(f"{lifecycle} must gate service monitoring on persistent runner identity")
         elif SERVICE_ADD not in script:
@@ -69,15 +88,13 @@ def main() -> int:
         if SERVICE_REMOVE not in script:
             errors.append(f"{lifecycle} must remove unregistered runners from YunoHost monitoring")
 
-    remove_script = (ROOT / "scripts/remove").read_text(encoding="utf-8")
-    if "ynh_remove_systemd_config" in remove_script:
-        errors.append("remove uses obsolete ynh_remove_systemd_config")
+    restore_script = scripts["restore"]
+    if SYSTEMCTL not in restore_script:
+        errors.append("restore must use ynh_systemctl to start a registered runner")
+
+    remove_script = scripts["remove"]
     if SYSTEMD_REMOVE not in remove_script:
         errors.append(f"remove must use {SYSTEMD_REMOVE}")
-
-    for script in (ROOT / "scripts").iterdir():
-        if script.is_file() and b"\r\n" in script.read_bytes():
-            errors.append(f"CRLF line endings in {script.relative_to(ROOT)}")
 
     if errors:
         for error in errors:
