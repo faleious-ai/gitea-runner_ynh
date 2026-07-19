@@ -4,8 +4,9 @@ Last architecture update: 2026-07-19.
 
 ## Current package state
 
-- Package-code HEAD before this status record: `c13f180d589963e0bcc1c1066e15a8d4acac789f`.
+- Package-code HEAD before this status record: `46581a2c4fb097f7457d75efe6408eac727f7220`.
 - Current package version: `2.1.0~ynh3`.
+- The complete packaging manifest is preserved, including installation arguments, immutable AMD64/ARM64 sources, checksums and YunoHost resources.
 - The package remains pinned to the latest stable official Gitea Runner binary `2.1.0` with immutable versioned URLs and SHA-256 values.
 - The updater preserves the current `~ynhN` package revision.
 
@@ -33,7 +34,7 @@ The real `~ynh2` attempt proved that upstream download, SHA-256 verification, AR
 
 ## Required next checks
 
-1. Run `Package validation` for the exact current `master` HEAD.
+1. Run `Package validation` for package-code HEAD `46581a2c4fb097f7457d75efe6408eac727f7220` or its status-only descendant.
 2. Confirm the local validator, Python compilation, shell syntax and official YunoHost package linter pass.
 3. Remove any offline duplicate Runner identity created by the failed registered attempt.
 4. Install `2.1.0~ynh3` with the real Gitea URL and a valid instance-level registration token.
