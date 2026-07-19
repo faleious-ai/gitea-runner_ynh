@@ -2,48 +2,47 @@
 
 Last architecture update: 2026-07-19.
 
-## Final package state
+## Current package state
 
-- Package-code HEAD: `8b3b4f8daa5d2a4118b385e574509836d84ccf60`.
-- Final package version: `2.1.0~ynh2`.
+- Package-code HEAD before this status record: `c13f180d589963e0bcc1c1066e15a8d4acac789f`.
+- Current package version: `2.1.0~ynh3`.
 - The package remains pinned to the latest stable official Gitea Runner binary `2.1.0` with immutable versioned URLs and SHA-256 values.
-- The updater preserves the current `~ynhN` package revision. A local rerun reported `already-current 2.1.0` without changing the manifest after the intentional `~ynh2` bump.
+- The updater preserves the current `~ynhN` package revision.
 
-## Root cause and corrections
+## Root causes and corrections
 
-- Installation failed with exit code 127 because `scripts/install` called the nonexistent `ynh_add_systemd_config` helper. `scripts/upgrade` had the same defect, and `scripts/remove` used the obsolete `ynh_remove_systemd_config` spelling.
-- The lifecycle scripts now use the YunoHost 12 helpers `ynh_config_add_systemd` and `ynh_config_remove_systemd`.
-- The package validator now rejects both obsolete spellings and requires the correct helpers, preventing regression. Registration remains optional; an empty token installs the package without registering or starting the Runner.
+Two consecutive real installation attempts on YunoHost `12.1.40.1`, Debian Bookworm ARM64, exposed obsolete helper names that static CI had not rejected:
 
-## Commands and evidence
+1. `2.1.0~ynh1` failed with exit code 127 because `scripts/install` called nonexistent `ynh_add_systemd_config`.
+2. `2.1.0~ynh2` successfully downloaded and verified the ARM64 binary, installed Docker, generated `config.yaml`, reached the configured Gitea instance, registered the Runner and created its systemd unit. It then failed with exit code 127 because service startup called nonexistent `ynh_systemd_action`.
 
-Local Windows checks used the bundled Python runtime and Git Bash because `python3`, Docker and a WSL distribution were unavailable:
+The package now:
 
-```text
-<bundled-python> tools/validate_package.py
-<bundled-python> -m compileall -q tools
-for script in scripts/*; do echo Checking $script; bash -n $script; done
-rg -n 'ynh_add_systemd_config|ynh_remove_systemd_config' scripts conf
-<bundled-python> tools/update_upstream.py
-```
+- uses `ynh_config_add_systemd` to install or refresh the unit;
+- uses `ynh_config_remove_systemd` during removal;
+- uses `ynh_systemctl` for start and stop actions in install, upgrade and restore;
+- rejects `ynh_add_systemd_config`, `ynh_remove_systemd_config` and `ynh_systemd_action` anywhere under `scripts/`;
+- requires the current helpers in the relevant lifecycle paths;
+- keeps registration optional and never persists the registration credential.
 
-Compilation and shell parsing passed locally; the helper scan returned no obsolete names. The standalone validator reported only the checkout's CRLF conversion. The exact validator, binary checks and official YunoHost package-linter procedure passed in the remote Linux workflows.
+## Validation state
 
-Validation runs for the package-code HEAD:
+Repository-side validation and the real installation retry for `2.1.0~ynh3` are not yet recorded here. A fresh package-validation run must pass for the exact package-code HEAD, followed by another real YunoHost installation using a newly generated registration credential if the failed attempt left an offline Runner registration.
 
-- Package validation: [run 29697551580](https://github.com/faleious-ai/gitea-runner_ynh/actions/runs/29697551580).
-- Update stable upstream release: [run 29697551484](https://github.com/faleious-ai/gitea-runner_ynh/actions/runs/29697551484).
+The real `~ynh2` attempt proved that upstream download, SHA-256 verification, ARM64 execution, Gitea connectivity and registration work. It did not prove successful service startup because the obsolete helper stopped the installer immediately before that step.
 
-Both runs were green, including the documented catalog exception from the official package linter. No Node.js 20 warning was present.
+## Required next checks
 
-## Required before production use
-
-On disposable YunoHost 12 infrastructure, validate an unregistered installation, registration against disposable Gitea, a Docker-isolated workflow, upgrade from the legacy package with `.runner` preservation, backup/restore, removal, URL change and reboot health.
+1. Run `Package validation` for the exact current `master` HEAD.
+2. Confirm the local validator, Python compilation, shell syntax and official YunoHost package linter pass.
+3. Remove any offline duplicate Runner identity created by the failed registered attempt.
+4. Install `2.1.0~ynh3` with the real Gitea URL and a valid instance-level registration token.
+5. Confirm `systemctl status gitea-runner`, YunoHost service monitoring and the Gitea administration page show the Runner online.
+6. Dispatch a disposable Actions workflow using Docker isolation.
+7. Later validate upgrade, backup/restore, removal and reboot health.
 
 ## Current classification
 
-`AUTOMATION_AND_PACKAGE_LINTER_VERIFIED_UPSTREAM_PIN_VALIDATED_LIFECYCLE_UNVERIFIED`
-
-The lifecycle is intentionally not classified as verified because no YunoHost host was available in this workspace.
+`REAL_REGISTRATION_VERIFIED_SERVICE_HELPERS_CORRECTED_YNH3_RETEST_REQUIRED`
 
 Read `AGENTS.md` and `doc/ADMIN.md` before continuing.
