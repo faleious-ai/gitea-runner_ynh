@@ -35,6 +35,7 @@ Registration is optional at installation. This allows deterministic package CI a
 - Keep immutable URLs and SHA-256 values in `manifest.toml`.
 - Do not silently remove an architecture. Record upstream availability and update tests in the same change.
 - Review Runner breaking changes and the Gitea compatibility requirement before publication. Gitea 1.27 and Runner 2.x are the baseline pair for the complete current Actions capability set.
+- The upstream updater must preserve the current `~ynhN` package revision when refreshing an upstream version or normalizing immutable pins.
 
 ## Required validation
 
