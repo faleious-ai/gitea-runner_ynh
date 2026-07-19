@@ -18,7 +18,7 @@ systemctl daemon-reload
 if [ -f "$data_dir/.runner" ]; then
     yunohost service add "$app" --description="Official Runner for Gitea Actions"
     ynh_script_progression --message="Starting restored Gitea Runner..." --weight=1
-    ynh_systemd_action --service_name="$app" --action="start" --log_path="systemd"
+    ynh_systemctl --service="$app" --action="start" --log_path="systemd"
 else
     ynh_print_info --message="Restore completed without a registered Runner identity; service remains inactive."
 fi
