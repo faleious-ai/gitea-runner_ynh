@@ -6,7 +6,7 @@ source /usr/share/yunohost/helpers
 upgrade_type=$(ynh_check_app_version_changed)
 
 ynh_script_progression --message="Stopping Gitea Runner..." --weight=1
-ynh_systemd_action --service_name="$app" --action="stop" --log_path="systemd" || true
+ynh_systemctl --service="$app" --action="stop" --log_path="systemd" || true
 
 # Older packages stored runtime state beside the binary. Move it into data_dir
 # before replacing install_dir so the registered runner identity survives.
@@ -36,7 +36,7 @@ ynh_config_add_systemd
 if [ -f "$data_dir/.runner" ]; then
     yunohost service add "$app" --description="Official Runner for Gitea Actions"
     ynh_script_progression --message="Starting Gitea Runner..." --weight=1
-    ynh_systemd_action --service_name="$app" --action="start" --log_path="systemd"
+    ynh_systemctl --service="$app" --action="start" --log_path="systemd"
 else
     yunohost service remove "$app" >/dev/null 2>&1 || true
     ynh_print_info --message="Upgrade completed without runner identity; service remains inactive."
