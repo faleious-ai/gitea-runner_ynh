@@ -31,7 +31,7 @@ chown "$app:$app" "$data_dir/config.yaml"
 chmod 0640 "$data_dir/config.yaml"
 
 ynh_script_progression --message="Refreshing the systemd service..." --weight=1
-ynh_add_systemd_config
+ynh_config_add_systemd
 
 if [ -f "$data_dir/.runner" ]; then
     yunohost service add "$app" --description="Official Runner for Gitea Actions"

@@ -13,6 +13,8 @@ FORBIDDEN = ("/latest/", "nightly", "-rc", "-beta", "-alpha")
 IDENTITY_CONDITION = 'if [ -f "$data_dir/.runner" ]; then'
 SERVICE_ADD = 'yunohost service add "$app"'
 SERVICE_REMOVE = 'yunohost service remove "$app"'
+SYSTEMD_ADD = "ynh_config_add_systemd"
+SYSTEMD_REMOVE = "ynh_config_remove_systemd"
 
 
 def main() -> int:
@@ -54,6 +56,10 @@ def main() -> int:
     for lifecycle in ("install", "upgrade"):
         script_path = ROOT / "scripts" / lifecycle
         script = script_path.read_text(encoding="utf-8")
+        if "ynh_add_systemd_config" in script:
+            errors.append(f"{lifecycle} uses obsolete ynh_add_systemd_config")
+        if SYSTEMD_ADD not in script:
+            errors.append(f"{lifecycle} must use {SYSTEMD_ADD}")
         if IDENTITY_CONDITION not in script:
             errors.append(f"{lifecycle} must gate service monitoring on persistent runner identity")
         elif SERVICE_ADD not in script:
@@ -62,6 +68,12 @@ def main() -> int:
             errors.append(f"{lifecycle} monitors the service before runner registration is proven")
         if SERVICE_REMOVE not in script:
             errors.append(f"{lifecycle} must remove unregistered runners from YunoHost monitoring")
+
+    remove_script = (ROOT / "scripts/remove").read_text(encoding="utf-8")
+    if "ynh_remove_systemd_config" in remove_script:
+        errors.append("remove uses obsolete ynh_remove_systemd_config")
+    if SYSTEMD_REMOVE not in remove_script:
+        errors.append(f"remove must use {SYSTEMD_REMOVE}")
 
     for script in (ROOT / "scripts").iterdir():
         if script.is_file() and b"\r\n" in script.read_bytes():

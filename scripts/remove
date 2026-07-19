@@ -23,7 +23,7 @@ then
 	yunohost service remove $app
 fi
 
-ynh_remove_systemd_config
+ynh_config_remove_systemd
 
 #=================================================
 # END OF SCRIPT
