@@ -37,7 +37,7 @@ if [ -f "$data_dir/.runner" ]; then
         --description="Official Runner for Gitea Actions" \
         --log="/var/log/$app/$app.log"
     ynh_script_progression --message="Starting Gitea Runner..." --weight=1
-    ynh_systemd_action --service_name="$app" --action="start" --log_path="systemd"
+    ynh_systemctl --service="$app" --action="start" --log_path="systemd"
 else
     yunohost service remove "$app" >/dev/null 2>&1 || true
     ynh_print_info --message="Runner installed but not registered. Register it from $data_dir, add it to YunoHost service monitoring, then start it."
