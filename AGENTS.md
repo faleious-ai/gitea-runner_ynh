@@ -41,8 +41,21 @@ Registration is optional at installation. This allows deterministic package CI a
 ```bash
 python3 tools/validate_package.py
 python3 -m py_compile tools/*.py
-for script in scripts/*; do bash -n "$script"; done
+find scripts -maxdepth 1 -type f -print0 |
+  sort -z |
+  while IFS= read -r -d '' script; do
+    echo "Checking ${script}"
+    bash -n "$script"
+  done
 ```
+
+The GitHub workflows also run the current official `YunoHost/package_linter`
+procedure: clone the linter, create a virtual environment, install its
+`requirements.txt` and invoke `package_linter.py` against this package.
+
+Because this fork is intentionally maintained outside the YunoHost application
+catalog, CI permits only the linter's `AppCatalog.is_in_catalog` result for
+this repository. Any other linter error or critical result remains fatal.
 
 Package lifecycle validation must cover unregistered install, registered service startup against a disposable Gitea instance, upgrade preserving `.runner`, a minimal workflow job, backup/restore and removal. Do not claim CI or lifecycle success without evidence tied to an exact commit.
 
