@@ -4,20 +4,28 @@ source ../settings/scripts/_common.sh
 source /usr/share/yunohost/helpers
 
 was_active=false
+restart_service() {
+    if $was_active; then
+        ynh_systemctl --service="$app" --action="start" --log_path="systemd" || true
+    fi
+}
+trap restart_service EXIT
+
 if systemctl is-active --quiet "$app"; then
     was_active=true
     ynh_script_progression --message="Stopping Gitea Runner for backup..." --weight=1
-    ynh_systemd_action --service_name="$app" --action="stop" --log_path="systemd"
+    ynh_systemctl --service="$app" --action="stop" --log_path="systemd"
 fi
 
 ynh_script_progression --message="Declaring Runner files for backup..." --weight=1
 ynh_backup --src_path="$install_dir"
 ynh_backup --src_path="$data_dir"
-ynh_backup --src_path="/etc/systemd/system/$app.service"
 
 if $was_active; then
     ynh_script_progression --message="Restarting Gitea Runner..." --weight=1
-    ynh_systemd_action --service_name="$app" --action="start" --log_path="systemd"
+    ynh_systemctl --service="$app" --action="start" --log_path="systemd"
+    was_active=false
 fi
+trap - EXIT
 
 ynh_script_progression --message="Backup of $app completed" --last

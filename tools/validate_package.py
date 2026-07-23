@@ -58,6 +58,12 @@ def main() -> int:
         errors.append("systemd service must use stable binary path and persistent identity")
     if "PrivateDevices=yes" in service or "RestrictNamespaces=yes" in service:
         errors.append("systemd hardening blocks Docker execution")
+    if "Environment=HOME=__DATA_DIR__" not in service:
+        errors.append("systemd service must direct HOME to the writable data directory")
+    if "Environment=XDG_CACHE_HOME=__DATA_DIR__/.cache" not in service:
+        errors.append("systemd service must direct action cache to the writable data directory")
+    if "ReadWritePaths=__DATA_DIR__" not in service:
+        errors.append("systemd service must allow writes to data_dir")
 
     scripts: dict[str, str] = {}
     for script_path in (ROOT / "scripts").iterdir():

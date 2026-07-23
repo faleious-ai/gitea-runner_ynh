@@ -12,6 +12,8 @@ User=__APP__
 Group=__APP__
 SupplementaryGroups=docker
 WorkingDirectory=__DATA_DIR__
+Environment=HOME=__DATA_DIR__
+Environment=XDG_CACHE_HOME=__DATA_DIR__/.cache
 ExecStart=__INSTALL_DIR__/runner --config __DATA_DIR__/config.yaml daemon
 Restart=on-failure
 RestartSec=5s
