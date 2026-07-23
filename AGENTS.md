@@ -54,6 +54,8 @@ The GitHub workflows also run the current official `YunoHost/package_linter`
 procedure: clone the linter, create a virtual environment, install its
 `requirements.txt` and invoke `package_linter.py` against this package.
 
+YunoHost helpers 2.1 use `ynh_app_upstream_version_changed` to distinguish an upstream binary update from a package-only revision. Do not use the removed v1 helper `ynh_check_app_version_changed`.
+
 YunoHost 12 systemd helpers are named `ynh_config_add_systemd`,
 `ynh_config_remove_systemd` and `ynh_systemctl`. Keep the obsolete
 `ynh_add_systemd_config`, `ynh_remove_systemd_config` and `ynh_systemd_action`

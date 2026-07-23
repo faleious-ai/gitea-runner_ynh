@@ -17,6 +17,7 @@ SYSTEMD_ADD = "ynh_config_add_systemd"
 SYSTEMD_REMOVE = "ynh_config_remove_systemd"
 SYSTEMCTL = "ynh_systemctl"
 OBSOLETE_HELPERS = {
+    "ynh_check_app_version_changed": "ynh_app_upstream_version_changed",
     "ynh_add_systemd_config": SYSTEMD_ADD,
     "ynh_remove_systemd_config": SYSTEMD_REMOVE,
     "ynh_systemd_action": SYSTEMCTL,
@@ -78,6 +79,10 @@ def main() -> int:
                 )
         if b"\r\n" in script_path.read_bytes():
             errors.append(f"CRLF line endings in {script_path.relative_to(ROOT)}")
+
+    upgrade_script = scripts["upgrade"]
+    if "ynh_app_upstream_version_changed" not in upgrade_script:
+        errors.append("upgrade must use ynh_app_upstream_version_changed")
 
     for lifecycle in ("install", "upgrade"):
         script = scripts[lifecycle]
