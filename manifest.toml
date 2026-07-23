@@ -9,7 +9,7 @@ description.fr = "Runner officiel pour Gitea Actions"
 description.pt = "Runner oficial para o Gitea Actions"
 
 # The automated updater replaces this with the newest stable validated release.
-version = "2.1.0~ynh6"
+version = "2.2.0~ynh6"
 maintainers = ["eric_G", "faleious-ai"]
 
 [upstream]
@@ -47,10 +47,10 @@ ram.runtime = "150M"
 [resources]
     [resources.sources]
         [resources.sources.main]
-        amd64.url = "https://dl.gitea.com/gitea-runner/2.1.0/gitea-runner-2.1.0-linux-amd64"
-        amd64.sha256 = "0d624d885e8d77ca0c27fc6ca1f4ecefe732ee1ff197d7201ca1a1911ecaa2f9"
-        arm64.url = "https://dl.gitea.com/gitea-runner/2.1.0/gitea-runner-2.1.0-linux-arm64"
-        arm64.sha256 = "a32961766b0a85eadd2dc76b7ee2b729ed697ef7e279b8625c5d92ef1f05d290"
+        amd64.url = "https://dl.gitea.com/gitea-runner/2.2.0/gitea-runner-2.2.0-linux-amd64"
+        amd64.sha256 = "d6b3f5bb2d9cd738bbdc34f66da7726cf429a82f915ea8ebe3eefa1b804cec0c"
+        arm64.url = "https://dl.gitea.com/gitea-runner/2.2.0/gitea-runner-2.2.0-linux-arm64"
+        arm64.sha256 = "4fdf63789d0fef1c962963b7b7a398f2137a6c87e7287c16e44d1c96792e576a"
         in_subdir = false
         extract = false
         rename = "runner"
