@@ -25,6 +25,7 @@ chown -R "$app:$app" "$install_dir" "$data_dir"
 if [ ! -f "$data_dir/config.yaml" ]; then
     "$install_dir/runner" generate-config > "$data_dir/config.yaml"
 fi
+ynh_runner_configure_host_gateway
 chown "$app:$app" "$data_dir/config.yaml"
 chmod 0640 "$data_dir/config.yaml"
 

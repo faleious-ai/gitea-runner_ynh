@@ -66,6 +66,15 @@ def main() -> int:
     if "ReadWritePaths=__DATA_DIR__" not in service:
         errors.append("systemd service must allow writes to data_dir")
 
+    common = (ROOT / "scripts/_common.sh").read_text(encoding="utf-8")
+    for required in (
+        "ynh_runner_configure_host_gateway",
+        "--add-host={host}:host-gateway",
+        "container.options was not found",
+    ):
+        if required not in common:
+            errors.append(f"runner network reconciliation missing {required}")
+
     scripts: dict[str, str] = {}
     for script_path in (ROOT / "scripts").iterdir():
         if not script_path.is_file():
@@ -83,6 +92,10 @@ def main() -> int:
     upgrade_script = scripts["upgrade"]
     if "ynh_app_upstream_version_changed" not in upgrade_script:
         errors.append("upgrade must use ynh_app_upstream_version_changed")
+
+    for lifecycle in ("install", "upgrade", "restore"):
+        if "ynh_runner_configure_host_gateway" not in scripts[lifecycle]:
+            errors.append(f"{lifecycle} must reconcile the Gitea host gateway mapping")
 
     for lifecycle in ("install", "upgrade"):
         script = scripts[lifecycle]
@@ -102,6 +115,10 @@ def main() -> int:
     restore_script = scripts["restore"]
     if SYSTEMCTL not in restore_script:
         errors.append("restore must use ynh_systemctl to start a registered runner")
+    if SYSTEMD_ADD not in restore_script:
+        errors.append("restore must regenerate the systemd unit")
+    if "/etc/systemd/system" in restore_script:
+        errors.append("restore must not restore generated systemd configuration")
 
     remove_script = scripts["remove"]
     if SYSTEMD_REMOVE not in remove_script:

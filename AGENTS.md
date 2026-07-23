@@ -28,6 +28,8 @@ Runtime state belongs in `data_dir`:
 
 Registration is optional at installation. This allows deterministic package CI and staged deployments. When a registration credential is supplied, it is consumed once and never stored by the package. Never commit a real credential to `tests.toml` or any other file.
 
+Job containers use isolated Docker networks. Keep `container.options` reconciled with `--add-host=<gitea-host>:host-gateway` so checkout can reach a Gitea instance hosted on the same machine without changing the TLS hostname.
+
 ## Update policy
 
 - Stable semantic versions only; reject prerelease and nightly builds.

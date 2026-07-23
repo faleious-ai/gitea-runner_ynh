@@ -6,15 +6,15 @@ source /usr/share/yunohost/helpers
 ynh_script_progression --message="Restoring Gitea Runner files..." --weight=2
 ynh_restore_file --origin_path="$install_dir"
 ynh_restore_file --origin_path="$data_dir"
-ynh_restore_file --origin_path="/etc/systemd/system/$app.service"
 
 chown -R "$app:$app" "$install_dir" "$data_dir"
 chmod 0755 "$install_dir/runner"
 if [ -f "$data_dir/config.yaml" ]; then
+    ynh_runner_configure_host_gateway
     chmod 0640 "$data_dir/config.yaml"
 fi
 
-systemctl daemon-reload
+ynh_config_add_systemd
 if [ -f "$data_dir/.runner" ]; then
     yunohost service add "$app" --description="Official Runner for Gitea Actions"
     ynh_script_progression --message="Starting restored Gitea Runner..." --weight=1
